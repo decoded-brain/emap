@@ -1,0 +1,5 @@
+# Agent/tool metadata is not library architecture.
+.agents/
+
+# Generated graph artifacts (query memory is handled by Graphify separately).
+graphify-out/
