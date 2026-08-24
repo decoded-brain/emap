@@ -7,3 +7,9 @@ bin/
 node_modules/
 target/
 tmp/
+
+# Graphify team setup: commit graphify-out/, keep local usage cost out of Git
+graphify-out/cost.json
+
+# Optional: uncomment to keep the cache local instead of committing it
+# graphify-out/cache/
