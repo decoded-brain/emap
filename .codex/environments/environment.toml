@@ -1,0 +1,24 @@
+version = 1
+name = "emap"
+
+[setup]
+script = """
+rustc --version
+cargo --version
+cargo fetch --locked
+"""
+
+[[actions]]
+name = "Check"
+icon = "run"
+command = "cargo check --all-features --locked --offline"
+
+[[actions]]
+name = "Test"
+icon = "run"
+command = "cargo test --lib --all-features --locked --offline"
+
+[[actions]]
+name = "Format"
+icon = "run"
+command = "cargo fmt --all -- --check"
