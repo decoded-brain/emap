@@ -2,9 +2,15 @@
 
 This is an upstream-derived Rust fixed-capacity map repository, not a trading service. Preserve its actual branch topology and upstream conventions; do not create a trading release structure by assumption.
 
-Read `Cargo.toml`, `README.md` and the relevant `.github/workflows/` check before changing behavior. Use focused deterministic Rust regression tests for map iteration, capacity and ownership changes, then relevant formatting/Clippy checks. Optional serde and benchmark features require their own affected checks. Do not call a revision security-patched based on an old branch name; establish the exact revision and evidence.
+Read `Cargo.toml`, `README.md` and the relevant `.github/workflows/` check before changing behavior. Use focused deterministic Rust regression tests for map iteration, capacity and ownership changes, then relevant Clippy checks. Optional serde and benchmark features require their own affected checks. Do not call a revision security-patched based on an old branch name; establish the exact revision and evidence.
 
 Do not run package publishing or release workflows as validation. Documentation-only maintenance needs diff/link checks.
+
+## Rust formatting
+
+- Run `cargo fmt --all` only at the end of the entire task, after implementation, refactoring, code generation, tests, required checks and review are complete. Formatting is the final code-changing step before the final commit or handoff; then run `cargo fmt --all -- --check` and inspect the final diff.
+- Do not run `cargo fmt`, `rustfmt` or formatting checks after individual edits, RED/GREEN cycles, intermediate steps or intermediate commits. Do not install or use formatting gates in commit hooks.
+- Keep formatting changes within task scope; do not reformat unrelated code. If further substantive edits are needed, finish and verify them before repeating this final formatting pass. Documentation-only tasks skip Rust formatting.
 
 ## Local workflow and safety
 
