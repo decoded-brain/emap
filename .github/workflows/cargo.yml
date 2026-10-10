@@ -3,6 +3,8 @@
 ---
 # yamllint disable rule:line-length
 name: cargo
+permissions:
+  contents: read
 "on":
   push:
   pull_request:
@@ -15,3 +17,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+      - name: Fetch locked dependencies
+        run: cargo fetch --locked
+      - name: Test supported features
+        run: cargo test --locked --offline --all-features
+      - name: Check mutable iterator borrow contract
+        run: python3 tests/iter_mut_contract.py
+      - name: Check Rust diagnostics
+        run: cargo clippy --locked --offline --all-targets --all-features -- -D warnings

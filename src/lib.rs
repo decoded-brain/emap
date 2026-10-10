@@ -62,7 +62,9 @@ pub struct Iter<'a, V> {
 pub struct IterMut<'a, V> {
     current: NodeId,
     head: *mut Node<V>,
-    _marker: PhantomData<&'a V>,
+    // Returned mutable values borrow their owner exclusively for 'a; a shared
+    // marker would misrepresent that ownership even though head already makes V invariant.
+    _marker: PhantomData<&'a mut V>,
 }
 
 /// Into-iterator over the [`Map`].
