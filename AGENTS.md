@@ -1,23 +1,32 @@
-# Emap dependency guidance
+# Emap instructions
 
-This is an upstream-derived Rust fixed-capacity map repository, not a trading service. Preserve its actual branch topology and upstream conventions; do not create a trading release structure by assumption.
+This is an upstream-derived Rust fixed-capacity integer-key map library,
+not a trading service. Preserve its actual checkout, upstream conventions
+and branch topology; do not introduce the trading Dev/release workflow.
 
-Read `Cargo.toml`, `README.md` and the relevant `.github/workflows/` check before changing behavior. Use focused deterministic Rust regression tests for map iteration, capacity and ownership changes, then relevant Clippy checks. Optional serde and benchmark features require their own affected checks. Do not call a revision security-patched based on an old branch name; establish the exact revision and evidence.
+Read Cargo.toml, README.md and the relevant .github/workflows check for the
+affected behavior. Cargo.toml declares Rust 2024, optional serde and
+bench_unchecked. Do not assume a workspace-wide MSRV.
 
-Do not run package publishing or release workflows as validation. Documentation-only maintenance needs diff/link checks.
+## Work and verification
 
-## Rust formatting
+Analysis is read-only unless implementation is requested. Before edits inspect
+root, branch, upstream and status; preserve unrelated work. Safely synchronize
+only when compatible with the task. Use isolation for substantial changes.
+Commit validated owned changes. Do not rewrite history, discard others' work,
+push, publish crates or run release workflows without authorization.
 
-- Run `cargo fmt --all` only at the end of the entire task, after implementation, refactoring, code generation, tests, required checks and review are complete. Formatting is the final code-changing step before the final commit or handoff; then run `cargo fmt --all -- --check` and inspect the final diff.
-- Do not run `cargo fmt`, `rustfmt` or formatting checks after individual edits, RED/GREEN cycles, intermediate steps or intermediate commits. Do not install or use formatting gates in commit hooks.
-- Keep formatting changes within task scope; do not reformat unrelated code. If further substantive edits are needed, finish and verify them before repeating this final formatting pass. Documentation-only tasks skip Rust formatting.
+For non-trivial behavior changes, use focused deterministic regressions.
+Check affected iteration, capacity, insertion/removal and ownership behavior.
+Check serde or benchmark features when affected; benchmark numerical speed claims
+on comparable workloads. A previous branch name does not prove a security fix.
 
-## Local workflow and safety
+Keep test bodies/helpers in dedicated test files. Run applicable Cargo tests
+and Clippy for the affected feature set. Docs-only changes need diff/link checks.
 
-- Default to current local `main` as the task base. For small, localized, low-risk changes (including agent settings, skills and documentation), use the existing checkout and branch without creating a worktree or branch. For substantial changes, financial/security behavior changes or parallel implementation needing isolation, create or reuse a native Codex worktree. Bind writes and implementers to the selected absolute path. Explicit user checkout instructions take precedence. Record root, branch, upstream, HEAD and status; preserve unrelated work. Use native-worktree when isolation is needed.
-- New task branches use verified current local `main`, including intended unpublished commits: refresh remote metadata and check divergence without replacing the local base. No upstream is expected for a new task branch. When continuing an existing tracked branch, safely run `git pull --ff-only`; stop on authentication failure, unexpected missing upstream, divergence or non-fast-forward. Never delete, force-push, reset or rebase permanent branches. The Dev pipeline is opt-in only when explicitly selected.
-- Delegate substantial bounded work when useful, prioritizing correctness over speed/cost: `decoded-scout` (GPT-6 Luna/high), `decoded-worker` (GPT-6.1 Sol/high) and `decoded-reviewer` (GPT-6.1 Sol/max). If profiles are unavailable, use those advertised models/efforts (GPT-6 Sol/max fallback for workers/reviewers); if unavailable, keep work inline. Use native Codex orchestration, give exact paths/file ownership, and keep integration, trading/security decisions and commits with the parent.
-- Changes to financial execution or calculation behavior require root-cause analysis and reproduction for bugs, a meaningful regression test observed RED then GREEN, repository-required safe checks, and one independent scoped review before parent integration. Behavior-preserving refactors first establish characterization coverage.
-- Review the scoped diff and run relevant checks before committing every completed change; stage only task files. Workers do not synchronize or commit. Report branch, base/synchronization, checks, commit and push status. Remote merges require green checks for the reviewed revision; verify actual branch protection rather than assume enforcement. Do not push, open/merge remote PRs, publish or deploy without an explicit request; local work or integration does not authorize a release.
-- No real trading, production credentials or private account/order payloads in checks or logs. Use isolated data, sanitized fixtures and local mocks; testnet mutations need explicit authorization and verified endpoints. Unknown refs must fail closed rather than select production. Report local validation, Dev verification and production release separately.
-- Keep dependencies/artifacts pinned; DTO changes include consumer code and compatibility checks. Preserve `SKILL.disabled.md` and reviewed guidance; never recreate disabled `SKILL.md` entrypoints during skill refreshes.
+Rust formatting is the final code-changing step after implementation,
+tests and review: cargo fmt --all, then cargo fmt --all -- --check.
+Keep formatting task-scoped; do not add intermediate formatting hooks.
+
+When delegating inside the aggregate, use its current saved profiles and
+economical-delegation policy. Do not hardcode an obsolete scout effort here.
