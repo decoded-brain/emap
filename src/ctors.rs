@@ -4,7 +4,7 @@
 use crate::{Map, Node, NodeId};
 use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 use std::mem;
-use std::ptr;
+use std::ptr::{self, NonNull};
 
 impl<V> Drop for Map<V> {
     fn drop(&mut self) {
@@ -20,8 +20,12 @@ impl<V> Drop for Map<V> {
             self.drop_used_nodes();
         }
 
-        unsafe {
-            dealloc(self.head.cast(), self.layout);
+        // Zero-capacity maps use an aligned dangling pointer, not an allocation;
+        // only pointers returned by alloc with this nonzero layout may be freed.
+        if self.layout.size() != 0 {
+            unsafe {
+                dealloc(self.head.cast(), self.layout);
+            }
         }
     }
 }
@@ -36,15 +40,22 @@ impl<V> Map<V> {
     #[must_use]
     fn with_capacity(cap: usize) -> Self {
         let layout = Layout::array::<Node<V>>(cap).expect("invalid layout");
-        let ptr = unsafe { alloc(layout) };
-        if ptr.is_null() {
-            handle_alloc_error(layout);
-        }
+        // GlobalAlloc rejects zero-sized layouts; an empty map never dereferences
+        // its aligned dangling pointer, and Drop must not pass it to dealloc.
+        let head = if layout.size() == 0 {
+            NonNull::<Node<V>>::dangling().as_ptr()
+        } else {
+            let allocation = unsafe { alloc(layout) };
+            if allocation.is_null() {
+                handle_alloc_error(layout);
+            }
+            allocation.cast()
+        };
         Self {
             first_free: NodeId::new(NodeId::UNDEF),
             first_used: NodeId::new(NodeId::UNDEF),
             layout,
-            head: ptr.cast(),
+            head,
             len: 0,
             #[cfg(debug_assertions)]
             initialized: false,
@@ -74,7 +85,9 @@ impl<V> Map<V> {
     #[inline]
     fn init_with_none(&mut self) {
         let cap = self.capacity();
-        self.first_free = NodeId::new(0);
+        // An empty allocation has no valid key; advertising slot zero would let
+        // next_key() return an index outside the map's capacity.
+        self.first_free = NodeId::new(if cap == 0 { NodeId::UNDEF } else { 0 });
         let mut p = self.head;
         for i in 0..cap {
             let free_next = if i + 1 == cap { NodeId::UNDEF } else { i + 1 };
@@ -105,7 +118,7 @@ impl<V: Clone> Map<V> {
     #[must_use]
     pub fn with_capacity_some(cap: usize, v: V) -> Self {
         let mut m = Self::with_capacity(cap);
-        m.init_with_some(cap, v);
+        m.fill_with_some(v);
         #[cfg(debug_assertions)]
         {
             m.initialized = true;
@@ -113,9 +126,35 @@ impl<V: Clone> Map<V> {
         m
     }
 
-    /// Fill all slots with `Some(v.clone())` and build the used-list.
+    /// Replace all slots with `Some(v.clone())` and build the used-list.
+    ///
+    /// Existing values are retained if cloning the replacement panics.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `cap` differs from the map capacity, on allocation error,
+    /// or if `Clone` panics during initialization.
     #[inline]
     pub fn init_with_some(&mut self, cap: usize, v: V) {
+        // This map owns exactly capacity() slots; a mismatched count can write
+        // beyond the allocation or leave existing slots outside the rebuilt lists.
+        assert_eq!(
+            cap,
+            self.capacity(),
+            "Initialization capacity must match the map"
+        );
+        // The replacement owns every completed clone, so unwinding drops its
+        // partial used-list and preserves the old map; exchange ownership before
+        // dropping the old values so their destruction cannot invalidate self.
+        let replacement = Self::with_capacity_some(cap, v);
+        let previous = mem::replace(self, replacement);
+        drop(previous);
+    }
+
+    /// Initialize a fresh allocation while recording ownership of every clone.
+    #[inline]
+    fn fill_with_some(&mut self, v: V) {
+        let cap = self.capacity();
         let mut previous_used = NodeId::new(NodeId::UNDEF);
         self.first_free = NodeId::new(NodeId::UNDEF);
         self.first_used = NodeId::new(NodeId::UNDEF);
@@ -124,10 +163,14 @@ impl<V: Clone> Map<V> {
         for index in 0..cap {
             let cloned = v.clone();
             let node = Node::new(NodeId::UNDEF, previous_used.get(), Some(cloned));
+            // Only the fresh constructor calls this helper: index is in bounds
+            // and the slot owns no value yet, so writing cannot leak an old value.
             unsafe {
                 ptr::write(self.head.add(index), node);
             }
             if previous_used.is_def() {
+                // The preceding slot was initialized before it became reachable;
+                // linking each completed clone lets Drop reclaim a prefix on panic.
                 unsafe {
                     let previous_node = &mut *self.head.add(previous_used.get());
                     previous_node.update_next(NodeId::new(index));
@@ -179,212 +222,5 @@ impl<V> Map<V> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::cell::Cell;
-    use std::panic::{AssertUnwindSafe, catch_unwind};
-    use std::rc::Rc;
-
-    /// Out-of-bounds insert must panic in debug builds.
-    #[test]
-    #[should_panic]
-    #[cfg(debug_assertions)]
-    fn insert_out_of_boundary() {
-        let mut m: Map<&str> = Map::with_capacity(1);
-        m.insert(5, "one");
-    }
-
-    /// Out-of-bounds get must panic in debug builds.
-    #[test]
-    #[should_panic]
-    #[cfg(debug_assertions)]
-    fn get_out_of_boundary() {
-        let m: Map<&str> = Map::with_capacity(1);
-        m.get(5).unwrap();
-    }
-
-    /// Out-of-bounds remove must panic in debug builds.
-    #[test]
-    #[should_panic]
-    #[cfg(debug_assertions)]
-    fn remove_out_of_boundary() {
-        let mut m: Map<&str> = Map::with_capacity(1);
-        m.remove(5);
-    }
-
-    /// Memory layout size must reflect Node<V> array size.
-    #[test]
-    fn calculates_size_of_memory() {
-        let m1: Map<u8> = Map::with_capacity_none(8);
-        assert_eq!(24 * 8, m1.layout.size());
-        let m2: Map<bool> = Map::with_capacity_none(8);
-        assert_eq!(24 * 8, m2.layout.size());
-    }
-
-    /// New map must start empty.
-    #[test]
-    fn makes_new_map() {
-        let m: Map<&str> = Map::with_capacity_none(16);
-        assert_eq!(0, m.len());
-    }
-
-    /// Capacity must match constructor argument.
-    #[test]
-    fn returns_capacity() {
-        let m: Map<&str> = Map::with_capacity_none(16);
-        assert_eq!(16, m.capacity());
-    }
-
-    /// Contains check must return false for uninitialized slot.
-    #[test]
-    fn with_init() {
-        let m: Map<&str> = Map::with_capacity_none(16);
-        assert!(!m.contains_key(8));
-    }
-
-    /// Dropping an empty map should be safe.
-    #[test]
-    fn drops_correctly() {
-        let m: Map<Vec<u8>> = Map::with_capacity_none(16);
-        assert_eq!(0, m.len());
-        drop(m);
-    }
-
-    /// Values must be dropped on map drop.
-    #[test]
-    fn drops_values() {
-        let mut m: Map<Rc<()>> = Map::with_capacity_none(1);
-        let v = Rc::new(());
-        m.insert(0, Rc::clone(&v));
-        drop(m);
-        assert_eq!(Rc::strong_count(&v), 1);
-    }
-
-    /// Multiple values must be dropped on map drop.
-    #[test]
-    fn drops_multiple_values() {
-        let mut m: Map<Rc<()>> = Map::with_capacity_none(3);
-        let a = Rc::new(());
-        let b = Rc::new(());
-        let c = Rc::new(());
-
-        m.insert(0, Rc::clone(&a));
-        m.insert(1, Rc::clone(&b));
-        m.insert(2, Rc::clone(&c));
-
-        drop(m);
-
-        assert_eq!(Rc::strong_count(&a), 1);
-        assert_eq!(Rc::strong_count(&b), 1);
-        assert_eq!(Rc::strong_count(&c), 1);
-    }
-
-    /// Values must not leak after repeated insert/remove cycles.
-    #[test]
-    fn drops_values_after_remove_cycles() {
-        let mut m: Map<Rc<()>> = Map::with_capacity_none(2);
-        let value = Rc::new(());
-
-        for _ in 0..3 {
-            m.insert(0, Rc::clone(&value));
-            m.remove(0);
-            assert_eq!(Rc::strong_count(&value), 1);
-        }
-
-        m.insert(0, Rc::clone(&value));
-        drop(m);
-        assert_eq!(Rc::strong_count(&value), 1);
-    }
-
-    #[derive(Clone, PartialEq, Eq)]
-    struct Foo {
-        pub t: i32,
-    }
-
-    /// Struct values must initialize as expected.
-    #[test]
-    fn init_with_structs() {
-        let m: Map<Foo> = Map::with_capacity_none(16);
-        assert_eq!(16, m.capacity());
-    }
-
-    /// `with_capacity_some` must fill all slots and set len accordingly.
-    #[test]
-    fn init_with_some() {
-        let m: Map<Foo> = Map::with_capacity_some(16, Foo { t: 42 });
-        assert_eq!(16, m.capacity());
-        assert_eq!(16, m.len());
-    }
-
-    /// Zero capacity must be supported.
-    #[test]
-    fn init_with_empty() {
-        let m: Map<Foo> = Map::with_capacity_some(0, Foo { t: 42 });
-        assert_eq!(0, m.capacity());
-        assert_eq!(0, m.len());
-    }
-
-    /// Partial initialization that panics must still be drop-safe.
-    #[test]
-    fn drop_after_boundary_panic_without_initialization() {
-        let result = catch_unwind(AssertUnwindSafe(|| {
-            let mut map: Map<&str> = Map::with_capacity(1);
-            map.insert(1, "boom");
-        }));
-        assert!(result.is_err());
-    }
-
-    #[derive(Debug)]
-    struct PanicOnClone {
-        clones: Rc<Cell<usize>>,
-        active: Rc<Cell<usize>>,
-        panic_after: usize,
-    }
-
-    impl PanicOnClone {
-        fn new(panic_after: usize, clones: Rc<Cell<usize>>, active: Rc<Cell<usize>>) -> Self {
-            active.set(active.get() + 1);
-            Self {
-                clones,
-                active,
-                panic_after,
-            }
-        }
-    }
-
-    impl Clone for PanicOnClone {
-        fn clone(&self) -> Self {
-            assert!(self.clones.get() < self.panic_after, "clone limit reached");
-            self.clones.set(self.clones.get() + 1);
-            self.active.set(self.active.get() + 1);
-            Self {
-                clones: Rc::clone(&self.clones),
-                active: Rc::clone(&self.active),
-                panic_after: self.panic_after,
-            }
-        }
-    }
-
-    impl Drop for PanicOnClone {
-        fn drop(&mut self) {
-            let current = self.active.get();
-            self.active.set(current.saturating_sub(1));
-        }
-    }
-
-    /// If cloning panics during `with_capacity_some`, no values must leak.
-    #[test]
-    fn drop_after_partial_with_capacity_some_panics() {
-        let clones = Rc::new(Cell::new(0));
-        let active = Rc::new(Cell::new(0));
-
-        let result = catch_unwind(AssertUnwindSafe(|| {
-            let value = PanicOnClone::new(1, Rc::clone(&clones), Rc::clone(&active));
-            let _ = Map::with_capacity_some(3, value);
-        }));
-
-        assert!(result.is_err());
-        assert_eq!(clones.get(), 1);
-        assert_eq!(active.get(), 0);
-    }
-}
+#[path = "ctors_tests.rs"]
+mod tests;

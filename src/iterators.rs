@@ -34,6 +34,8 @@ impl<'a, V: Clone + 'a> Iterator for IterMut<'a, V> {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.current.is_def() {
+            // The map is borrowed exclusively and each used slot is visited once;
+            // advancing to disjoint nodes keeps earlier mutable values valid.
             let node = unsafe { &mut *self.head.add(self.current.get()) };
             let mut next = node.get_next();
             std::mem::swap(&mut self.current, &mut next);
@@ -50,7 +52,9 @@ impl<'a, V: Clone + 'a> Iterator for IntoIter<'a, V> {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.current.is_def() {
-            let node = unsafe { &mut *self.head.add(self.current.get()) };
+            // Cloning through a shared map must preserve existing value borrows;
+            // a mutable node reference would invalidate them without any write.
+            let node = unsafe { &*self.head.add(self.current.get()) };
             let mut next = node.get_next();
             std::mem::swap(&mut self.current, &mut next);
             Some((next.get(), node.get().unwrap().clone()))
@@ -106,13 +110,19 @@ impl<V: Clone> Map<V> {
     /// ```
     ///
     /// The keys are not mutable, only the values, for obvious reasons.
+    /// The map is borrowed exclusively while the iterator or its values are in use.
     ///
     /// # Panics
     ///
     /// It may panic in debug mode, if the [`Map`] is not initialized.
     #[inline]
     #[must_use]
-    pub const fn iter_mut(&self) -> IterMut<'_, V> {
+    // Keep mutation explicit: an IntoIterator impl for &mut Map could change
+    // borrowed .into_iter() dispatch and its existing cloned-value contract.
+    #[allow(clippy::iter_without_into_iter)]
+    // A shared receiver permits aliases with map reads or another mutable iterator;
+    // exclusive borrowing prevents those references from invalidating each other.
+    pub const fn iter_mut(&mut self) -> IterMut<'_, V> {
         #[cfg(debug_assertions)]
         assert!(self.initialized, "Can't iter_mut() non-initialized Map");
         IterMut {
@@ -141,21 +151,6 @@ impl<V: Clone> Map<V> {
 }
 
 #[test]
-fn empty_iterator() {
-    let m: Map<u32> = Map::with_capacity_none(16);
-    assert!(m.into_iter().next().is_none());
-}
-
-#[test]
-fn insert_and_jump_over_next() {
-    let mut m: Map<&str> = Map::with_capacity_none(16);
-    m.insert(0, "foo");
-    let mut iter = m.into_iter();
-    assert_eq!("foo", iter.next().unwrap().1);
-    assert!(iter.next().is_none());
-}
-
-#[test]
 fn insert_and_iterate() {
     let mut m: Map<&str> = Map::with_capacity_none(16);
     m.insert(0, "one");
@@ -171,45 +166,6 @@ fn insert_and_iterate() {
     assert_eq!(3, sum);
 }
 
-#[test]
-fn insert_and_into_iterate() {
-    let mut m: Map<&str> = Map::with_capacity_none(16);
-    m.insert(0, "one");
-    m.insert(1, "two");
-    m.insert(2, "three");
-    let mut sum = 0;
-    let mut count = 0;
-    for (k, _v) in m.into_iter() {
-        sum += k;
-        count += 1;
-    }
-    assert_eq!(3, count);
-    assert_eq!(3, sum);
-}
-
-#[test]
-fn iterate_without_function() {
-    let mut m: Map<&str> = Map::with_capacity_none(16);
-    m.insert(0, "test");
-    let mut count = 0;
-    for (_, _) in &m {
-        count += 1;
-    }
-    assert_eq!(1, count);
-}
-
-#[test]
-fn iterate_and_mutate() {
-    let mut m: Map<u64> = Map::with_capacity_none(16);
-    m.insert(0, 16);
-    m.insert(1, 32);
-    m.insert(2, 64);
-    for (_, v) in m.iter_mut() {
-        *v += 1;
-    }
-    let mut sum = 0;
-    for v in m.values() {
-        sum += v;
-    }
-    assert_eq!(115, sum);
-}
+#[cfg(test)]
+#[path = "iterators_tests.rs"]
+mod tests;
