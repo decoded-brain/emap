@@ -6,3 +6,4 @@
 *.java ident
 *.xml ident
 *.png binary
+graphify-out/graph.json merge=graphify
