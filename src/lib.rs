@@ -5,6 +5,7 @@
 #![warn(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 #![allow(clippy::multiple_inherent_impl)]
 #![allow(clippy::multiple_crate_versions)]
+#![allow(clippy::missing_panics_doc)]
 
 mod clone;
 mod ctors;

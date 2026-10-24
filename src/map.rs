@@ -27,6 +27,8 @@ impl<V> Map<V> {
     #[inline]
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
+    /// # Safety
+    /// The map must be initialized, and `k` must be less than its capacity.
     pub unsafe fn contains_key_unchecked(&self, k: usize) -> bool {
         self.assert_boundaries_debug(k);
         unsafe { &*self.head.add(k) }.is_some()
@@ -39,6 +41,8 @@ impl<V> Map<V> {
     }
 
     #[inline]
+    /// # Safety
+    /// The map must be initialized, and `k` must be less than its capacity.
     pub unsafe fn remove_unchecked(&mut self, k: usize) {
         self.assert_boundaries_debug(k);
         let node = unsafe { &mut *self.head.add(k) };
@@ -80,7 +84,6 @@ impl<V> Map<V> {
     pub fn push(&mut self, v: V) -> usize {
         let k = self.next_key();
         self.insert(k, v);
-        self.len += 1;
         k
     }
 
@@ -90,6 +93,8 @@ impl<V> Map<V> {
     }
 
     #[inline]
+    /// # Safety
+    /// The map must be initialized, and `k` must be less than its capacity.
     pub unsafe fn insert_unchecked(&mut self, k: usize, v: V) {
         self.assert_boundaries_debug(k);
         let node = unsafe { &mut *self.head.add(k) };
@@ -134,6 +139,8 @@ impl<V> Map<V> {
 
     #[inline]
     #[must_use]
+    /// # Safety
+    /// The map must be initialized, and `k` must be less than its capacity.
     pub unsafe fn get_unchecked(&self, k: usize) -> Option<&V> {
         self.assert_boundaries_debug(k);
         unsafe { &*self.head.add(k) }.get()
@@ -146,6 +153,8 @@ impl<V> Map<V> {
 
     #[inline]
     #[must_use]
+    /// # Safety
+    /// The map must be initialized, and `k` must be less than its capacity.
     pub unsafe fn get_mut_unchecked(&mut self, k: usize) -> Option<&mut V> {
         self.assert_boundaries_debug(k);
         unsafe { &mut *(self.head.add(k)) }.get_mut()
@@ -325,6 +334,23 @@ fn pushes_into() {
     let mut m: Map<&str> = Map::with_capacity_none(16);
     assert_eq!(0, m.push("one"));
     assert_eq!(1, m.push("two"));
+}
+
+#[test]
+fn push_tracks_the_exact_occupied_count_through_removal_and_reuse() {
+    let mut map = Map::with_capacity_none(2);
+    let first = map.push(10);
+    assert_eq!(map.len(), 1);
+    let second = map.push(20);
+    assert_eq!(map.len(), 2);
+    map.remove(first);
+    assert_eq!(map.len(), 1);
+    assert_eq!(map.get(second), Some(&20));
+    assert_eq!(map.push(30), first);
+    assert_eq!(map.len(), 2);
+    assert_eq!(map.iter().count(), map.len());
+    map.clear();
+    assert!(map.is_empty());
 }
 
 #[test]
