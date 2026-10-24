@@ -1,5 +1,3 @@
-// SPDX-FileCopyrightText: Copyright (c) 2023-2026 Yegor Bugayenko
-// SPDX-License-Identifier: MIT
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct NodeId {

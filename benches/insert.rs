@@ -1,5 +1,3 @@
-// SPDX-FileCopyrightText: Copyright (c) 2023-2026 Yegor Bugayenko
-// SPDX-License-Identifier: MIT
 
 #![allow(clippy::unit_arg)]
 
@@ -11,13 +9,8 @@ use criterion::{
 };
 use emap::Map;
 
-/// Sizes used for scale-out benchmarks.
 const SIZES: &[usize] = &[16_384, 32_768, 65_536, 131_072];
 
-/// Global Criterion config tuned for heavy batches.
-/// - Longer measurement avoids "unable to complete 100 samples in 5.0s"
-/// - Moderate sample size keeps runtime reasonable
-/// - Flat sampling stabilizes timing for batched workloads
 fn criterion_config() -> Criterion {
     Criterion::default()
         .warm_up_time(Duration::from_secs(2))
@@ -26,9 +19,6 @@ fn criterion_config() -> Criterion {
         .noise_threshold(0.01)
 }
 
-/// Batch-throughput benchmark: CAP inserts of an &str (pointer+len only).
-///
-/// Measures write-hot path without allocation costs in the value.
 fn bench_insert_str(c: &mut Criterion) {
     let mut group = c.benchmark_group("emap_insert_str");
     group.sampling_mode(SamplingMode::Flat);
@@ -59,7 +49,6 @@ fn bench_insert_str(c: &mut Criterion) {
                 |mut m| {
                     let v = black_box(value);
                     for i in 0..n {
-                        // SAFETY: fresh map, unique keys 0..n-1, sufficient capacity.
                         unsafe { m.insert_unchecked(i, v) };
                     }
                     black_box(m);
@@ -72,7 +61,6 @@ fn bench_insert_str(c: &mut Criterion) {
     group.finish();
 }
 
-/// Batch-throughput benchmark: CAP inserts of a u64.
 fn bench_insert_u64(c: &mut Criterion) {
     let mut group = c.benchmark_group("emap_insert_u64");
     group.sampling_mode(SamplingMode::Flat);
@@ -103,7 +91,6 @@ fn bench_insert_u64(c: &mut Criterion) {
                 |mut m| {
                     let v = black_box(val);
                     for i in 0..n {
-                        // SAFETY: fresh map, unique keys 0..n-1, sufficient capacity.
                         unsafe { m.insert_unchecked(i, v) };
                     }
                     black_box(m);
@@ -116,9 +103,6 @@ fn bench_insert_u64(c: &mut Criterion) {
     group.finish();
 }
 
-/// Batch-throughput benchmark: CAP inserts of an owned `String`.
-///
-/// This includes allocation and memcpy cost for the value payload.
 fn bench_insert_string(c: &mut Criterion) {
     let mut group = c.benchmark_group("emap_insert_string");
     group.sampling_mode(SamplingMode::Flat);
@@ -146,9 +130,6 @@ fn bench_insert_string(c: &mut Criterion) {
     group.finish();
 }
 
-/// Microbenchmark: latency of a single insert into a pre-allocated map.
-///
-/// Measures per-op latency rather than batch throughput.
 fn bench_single_insert_latency(c: &mut Criterion) {
     let mut group = c.benchmark_group("emap_single_insert_latency");
     group.sampling_mode(SamplingMode::Flat);
@@ -172,7 +153,6 @@ fn bench_single_insert_latency(c: &mut Criterion) {
         b.iter_batched(
             || (Map::<u64>::with_capacity_none(cap), 777u64, 123usize),
             |(mut m, v, k)| {
-                // SAFETY: unique key into a fresh map with sufficient capacity.
                 unsafe { m.insert_unchecked(k, v) };
                 black_box(m);
             },

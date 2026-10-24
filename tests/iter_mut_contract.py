@@ -1,4 +1,3 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2026 Yegor Bugayenko
 # SPDX-License-Identifier: MIT
 
 """Compile-only checks for the public mutable-iterator borrow contract."""

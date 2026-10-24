@@ -1,5 +1,3 @@
-// SPDX-FileCopyrightText: Copyright (c) 2023-2026 Yegor Bugayenko
-// SPDX-License-Identifier: MIT
 
 use crate::{Map, Node, NodeId};
 use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
@@ -20,8 +18,6 @@ impl<V> Drop for Map<V> {
             self.drop_used_nodes();
         }
 
-        // Zero-capacity maps use an aligned dangling pointer, not an allocation;
-        // only pointers returned by alloc with this nonzero layout may be freed.
         if self.layout.size() != 0 {
             unsafe {
                 dealloc(self.head.cast(), self.layout);
@@ -31,17 +27,10 @@ impl<V> Drop for Map<V> {
 }
 
 impl<V> Map<V> {
-    /// Create a map with the given capacity without initializing values.
-    ///
-    /// # Panics
-    ///
-    /// Panics on allocation error.
     #[inline]
     #[must_use]
     fn with_capacity(cap: usize) -> Self {
         let layout = Layout::array::<Node<V>>(cap).expect("invalid layout");
-        // GlobalAlloc rejects zero-sized layouts; an empty map never dereferences
-        // its aligned dangling pointer, and Drop must not pass it to dealloc.
         let head = if layout.size() == 0 {
             NonNull::<Node<V>>::dangling().as_ptr()
         } else {
@@ -62,13 +51,6 @@ impl<V> Map<V> {
         }
     }
 
-    /// Create a map and initialize all slots with `None`.
-    ///
-    /// More expensive than `with_capacity` since it initializes every slot.
-    ///
-    /// # Panics
-    ///
-    /// Panics on allocation error.
     #[inline]
     #[must_use]
     pub fn with_capacity_none(cap: usize) -> Self {
@@ -81,12 +63,9 @@ impl<V> Map<V> {
         m
     }
 
-    /// Initialize all slots as free and link the free-list.
     #[inline]
     fn init_with_none(&mut self) {
         let cap = self.capacity();
-        // An empty allocation has no valid key; advertising slot zero would let
-        // next_key() return an index outside the map's capacity.
         self.first_free = NodeId::new(if cap == 0 { NodeId::UNDEF } else { 0 });
         let mut p = self.head;
         for i in 0..cap {
@@ -100,7 +79,6 @@ impl<V> Map<V> {
         }
     }
 
-    /// Return the map capacity.
     #[inline]
     #[must_use]
     pub const fn capacity(&self) -> usize {
@@ -109,11 +87,6 @@ impl<V> Map<V> {
 }
 
 impl<V: Clone> Map<V> {
-    /// Create a map and fill all slots with the provided value.
-    ///
-    /// # Panics
-    ///
-    /// Panics on allocation error or if `Clone` panics during initialization.
     #[inline]
     #[must_use]
     pub fn with_capacity_some(cap: usize, v: V) -> Self {
@@ -126,32 +99,18 @@ impl<V: Clone> Map<V> {
         m
     }
 
-    /// Replace all slots with `Some(v.clone())` and build the used-list.
-    ///
-    /// Existing values are retained if cloning the replacement panics.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `cap` differs from the map capacity, on allocation error,
-    /// or if `Clone` panics during initialization.
     #[inline]
     pub fn init_with_some(&mut self, cap: usize, v: V) {
-        // This map owns exactly capacity() slots; a mismatched count can write
-        // beyond the allocation or leave existing slots outside the rebuilt lists.
         assert_eq!(
             cap,
             self.capacity(),
             "Initialization capacity must match the map"
         );
-        // The replacement owns every completed clone, so unwinding drops its
-        // partial used-list and preserves the old map; exchange ownership before
-        // dropping the old values so their destruction cannot invalidate self.
         let replacement = Self::with_capacity_some(cap, v);
         let previous = mem::replace(self, replacement);
         drop(previous);
     }
 
-    /// Initialize a fresh allocation while recording ownership of every clone.
     #[inline]
     fn fill_with_some(&mut self, v: V) {
         let cap = self.capacity();
@@ -163,14 +122,10 @@ impl<V: Clone> Map<V> {
         for index in 0..cap {
             let cloned = v.clone();
             let node = Node::new(NodeId::UNDEF, previous_used.get(), Some(cloned));
-            // Only the fresh constructor calls this helper: index is in bounds
-            // and the slot owns no value yet, so writing cannot leak an old value.
             unsafe {
                 ptr::write(self.head.add(index), node);
             }
             if previous_used.is_def() {
-                // The preceding slot was initialized before it became reachable;
-                // linking each completed clone lets Drop reclaim a prefix on panic.
                 unsafe {
                     let previous_node = &mut *self.head.add(previous_used.get());
                     previous_node.update_next(NodeId::new(index));
@@ -185,11 +140,6 @@ impl<V: Clone> Map<V> {
 }
 
 impl<V> Map<V> {
-    /// Drop values reachable through the used-list only.
-    ///
-    /// # Safety
-    ///
-    /// `self.head` must point to a valid array of `Node<V>` of size `capacity()`.
     #[inline]
     unsafe fn drop_used_nodes(&mut self) {
         let mut current = self.first_used;
@@ -202,13 +152,6 @@ impl<V> Map<V> {
         }
     }
 
-    /// Drop all values in initialized slots regardless of list integrity.
-    ///
-    /// Enabled only in debug builds to detect leaks when invariants are violated.
-    ///
-    /// # Safety
-    ///
-    /// `self.head` must point to a valid array of `Node<V>` of size `capacity()`.
     #[cfg(debug_assertions)]
     #[inline]
     unsafe fn drop_all_initialized_nodes(&mut self) {

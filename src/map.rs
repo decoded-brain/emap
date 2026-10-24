@@ -1,21 +1,13 @@
-// SPDX-FileCopyrightText: Copyright (c) 2023-2026 Yegor Bugayenko
-// SPDX-License-Identifier: MIT
 
 use crate::{Map, NodeId};
 
 impl<V> Map<V> {
-    /// Is it empty?
     #[inline]
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Return the total number of items inside.
-    ///
-    /// # Panics
-    ///
-    /// It may panic in debug mode, if the [`Map`] is not initialized.
     #[inline]
     #[must_use]
     pub fn len(&self) -> usize {
@@ -24,11 +16,6 @@ impl<V> Map<V> {
         self.len
     }
 
-    /// Does the map contain this key?
-    ///
-    /// # Panics
-    ///
-    /// Panics if k is out of bound.
     #[inline]
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
@@ -37,12 +24,6 @@ impl<V> Map<V> {
         unsafe { self.contains_key_unchecked(k) }
     }
 
-    /// Does the map contain this key?
-    ///
-    /// # Safety
-    ///
-    /// In debug builds, this may panic if `k` is out of bounds, but in release builds,
-    /// passing an out-of-bounds `k` will result in undefined behavior.
     #[inline]
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
@@ -51,23 +32,12 @@ impl<V> Map<V> {
         unsafe { &*self.head.add(k) }.is_some()
     }
 
-    /// Remove by key.
-    ///
-    /// # Panics
-    ///
-    /// Panics if k is out of bound.
     #[inline]
     pub fn remove(&mut self, k: usize) {
         self.assert_boundaries(k);
         unsafe { self.remove_unchecked(k) }
     }
 
-    /// Remove by key.
-    ///
-    /// # Safety
-    ///
-    /// In debug builds, this may panic if `k` is out of bounds, but in release builds,
-    /// passing an out-of-bounds `k` will result in undefined behavior.
     #[inline]
     pub unsafe fn remove_unchecked(&mut self, k: usize) {
         self.assert_boundaries_debug(k);
@@ -80,7 +50,6 @@ impl<V> Map<V> {
         let prev_used = node.get_prev();
         let next_used = node.get_next();
 
-        // 1. remove node from element list
         if prev_used.is_undef() {
             self.first_used = next_used;
         } else {
@@ -93,7 +62,6 @@ impl<V> Map<V> {
             next_node.update_prev(prev_used);
         }
 
-        // 2. insert node into free list
         node.update_next(self.first_free);
         node.update_prev(NodeId::new(NodeId::UNDEF));
 
@@ -108,7 +76,6 @@ impl<V> Map<V> {
         self.len -= 1;
     }
 
-    /// Push to the rightmost position and return the key.
     #[inline]
     pub fn push(&mut self, v: V) -> usize {
         let k = self.next_key();
@@ -117,22 +84,11 @@ impl<V> Map<V> {
         k
     }
 
-    /// Insert a single pair into the map.
-    ///
-    /// # Panics
-    ///
-    /// Panics if k is out of bound.
     pub fn insert(&mut self, k: usize, v: V) {
         self.assert_boundaries(k);
         unsafe { self.insert_unchecked(k, v) }
     }
 
-    /// Insert a single pair into the map.
-    ///
-    /// # Safety
-    ///
-    /// In debug builds, this may panic if `k` is out of bounds, but in release builds,
-    /// passing an out-of-bounds `k` will result in undefined behavior.
     #[inline]
     pub unsafe fn insert_unchecked(&mut self, k: usize, v: V) {
         self.assert_boundaries_debug(k);
@@ -144,7 +100,6 @@ impl<V> Map<V> {
             return;
         }
 
-        // 1. remove node from free list
         if node.get_prev().is_undef() {
             self.first_free = node.get_next();
         } else {
@@ -157,7 +112,6 @@ impl<V> Map<V> {
             next_free.update_prev(node.get_prev());
         }
 
-        // 2. insert node into element list
         node.update_next(self.first_used);
         node.update_prev(NodeId::new(NodeId::UNDEF));
 
@@ -172,23 +126,12 @@ impl<V> Map<V> {
         self.len += 1;
     }
 
-    /// Get a reference to a single value.
-    ///
-    /// # Panics
-    ///
-    /// Panics if k is out of bound.
     #[must_use]
     pub fn get(&self, k: usize) -> Option<&V> {
         self.assert_boundaries(k);
         unsafe { self.get_unchecked(k) }
     }
 
-    /// Get a reference to a single value.
-    ///
-    /// # Safety
-    ///
-    /// In debug builds, this may panic if `k` is out of bounds, but in release builds,
-    /// passing an out-of-bounds `k` will result in undefined behavior.
     #[inline]
     #[must_use]
     pub unsafe fn get_unchecked(&self, k: usize) -> Option<&V> {
@@ -196,22 +139,11 @@ impl<V> Map<V> {
         unsafe { &*self.head.add(k) }.get()
     }
 
-    /// Get a mutable reference to a single value.
-    ///
-    /// # Panics
-    ///
-    /// Panics if k is out of bound.
     pub fn get_mut(&mut self, k: usize) -> Option<&mut V> {
         self.assert_boundaries(k);
         unsafe { self.get_mut_unchecked(k) }
     }
 
-    /// Get a mutable reference to a single value.
-    ///
-    /// # Safety
-    ///
-    /// In debug builds, this may panic if `k` is out of bounds, but in release builds,
-    /// passing an out-of-bounds `k` will result in undefined behavior.
     #[inline]
     #[must_use]
     pub unsafe fn get_mut_unchecked(&mut self, k: usize) -> Option<&mut V> {
@@ -219,7 +151,6 @@ impl<V> Map<V> {
         unsafe { &mut *(self.head.add(k)) }.get_mut()
     }
 
-    /// Remove all items from it, but keep the space intact for future use.
     #[inline]
     pub fn clear(&mut self) {
         while self.first_used.is_def() {
@@ -227,11 +158,6 @@ impl<V> Map<V> {
         }
     }
 
-    /// Retains only the elements specified by the predicate.
-    ///
-    /// # Panics
-    ///
-    /// It may panic in debug mode, if the [`Map`] is not initialized.
     #[inline]
     pub fn retain<F: Fn(&usize, &V) -> bool>(&mut self, f: F) {
         #[cfg(debug_assertions)]
@@ -245,7 +171,6 @@ impl<V> Map<V> {
         }
     }
 
-    /// Check the boundary condition only in debug mode.
     #[inline]
     #[allow(unused_variables)]
     fn assert_boundaries_debug(&self, k: usize) {
@@ -257,7 +182,6 @@ impl<V> Map<V> {
         );
     }
 
-    /// Check the boundary condition.
     #[inline]
     #[allow(unused_variables)]
     fn assert_boundaries(&self, k: usize) {

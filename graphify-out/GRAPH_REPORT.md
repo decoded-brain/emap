@@ -1,17 +1,17 @@
-# Graph Report - emap  (2026-10-10)
+# Graph Report - emap  (2026-10-22)
 
 ## Corpus Check
-- 28 files · ~11,676 words
+- 31 files · ~9,536 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 5 file(s) not represented in the graph (top: (none) 3, .toml 2)
 
 ## Summary
-- 368 nodes · 553 edges · 31 communities (13 shown, 18 thin omitted)
-- Extraction: 96% EXTRACTED · 3% INFERRED · 1% AMBIGUOUS · INFERRED: 16 edges (avg confidence: 0.88)
+- 381 nodes · 595 edges · 31 communities (12 shown, 19 thin omitted)
+- Extraction: 97% EXTRACTED · 3% INFERRED · 1% AMBIGUOUS · INFERRED: 16 edges (avg confidence: 0.88)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `eb2b5317`
+- Built from commit: `1daa596f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -19,20 +19,20 @@
 - map.rs
 - Map<V>
 - node.rs
-- NodeId
+- Map
 - serialization.rs
 - emap README
 - ctors_tests.rs
 - keys.rs
-- compare_with_intmap.rs
+- benches/AGENTS.md
 - benchmark.rs
 - iterators_tests.rs
-- insert.rs
+- compare_with_intmap.rs
 - Item
 - index.rs
 - .next
-- .fmt
-- Map<V>
+- src/AGENTS.md
+- tests/AGENTS.md
 - .next
 - renovate.json
 - Map<V>
@@ -43,20 +43,21 @@
 - iter_mut_contract.py
 - XCOP Workflow
 - emap
-- Emap instructions
+- debug.rs
+- AGENTS.md
 - README.md
 
 ## God Nodes (most connected - your core abstractions)
-1. `NodeId` - 18 edges
-2. `Map<V>` - 17 edges
-3. `Map` - 11 edges
-4. `Node` - 11 edges
+1. `Map` - 23 edges
+2. `NodeId` - 21 edges
+3. `Map<V>` - 17 edges
+4. `Node` - 12 edges
 5. `Node<V>` - 11 edges
 6. `Map<V>` - 10 edges
 7. `emap README` - 9 edges
-8. `IntoIter` - 7 edges
-9. `Keys` - 7 edges
-10. `bench_remove_safe()` - 6 edges
+8. `IntoIter` - 8 edges
+9. `IntoValues` - 7 edges
+10. `Keys` - 7 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `MIT License` --semantically_similar_to--> `REUSE MIT License Copy`  [INFERRED] [semantically similar]
@@ -78,22 +79,22 @@
 - **Continuous Quality Suite** — github_workflows_actionlint_actionlint_workflow, github_workflows_bashate_bashate_workflow, github_workflows_cargo_cargo_workflow, github_workflows_markdown_lint_markdown_lint_workflow, github_workflows_pdd_pdd_workflow, github_workflows_shellcheck_shellcheck_workflow, github_workflows_tarpaulin_tarpaulin_workflow, github_workflows_typos_typos_workflow, github_workflows_xcop_xcop_workflow, github_workflows_yamllint_yamllint_workflow, rultor_merge_quality_gate [INFERRED 0.85]
 - **License Compliance Suite** — github_workflows_copyrights_copyrights_workflow, github_workflows_reuse_reuse_workflow, license_mit_license, licenses_mit_mit_license_copy [INFERRED 0.95]
 
-## Communities (31 total, 18 thin omitted)
+## Communities (31 total, 19 thin omitted)
 
 ### Community 0 - "map.rs"
-Cohesion: 0.09
+Cohesion: 0.10
 Nodes (22): checks_key(), clear_and_len(), clears_it_up(), default_clear(), first_used_remove(), Foo, gets_missing_key(), insert_and_check_length() (+14 more)
 
 ### Community 2 - "node.rs"
 Cohesion: 0.14
 Nodes (12): node_complex_type(), node_creation(), node_debug(), node_empty(), node_id_basic(), node_id_const(), node_id_equality(), node_id_undef() (+4 more)
 
-### Community 3 - "NodeId"
-Cohesion: 0.14
-Nodes (13): &'a Map<V>, Map<V>, IntoIter, IntoValues, Iter, IterMut, Keys, Map (+5 more)
+### Community 3 - "Map"
+Cohesion: 0.09
+Nodes (12): &'a Map<V>, Map<V>, IntoIter, IntoValues, Iter, IterMut, Map, Values (+4 more)
 
 ### Community 4 - "serialization.rs"
-Cohesion: 0.10
+Cohesion: 0.11
 Nodes (5): Map<V>, serde_big_map(), serialize_and_deserialize(), Vi, Vi<V>
 
 ### Community 5 - "emap README"
@@ -105,20 +106,16 @@ Cohesion: 0.06
 Nodes (5): CountedValue, drop_after_partial_with_capacity_some_panics(), Foo, panicking_reinitialization_preserves_old_values_and_drops_new_clones(), PanicOnClone
 
 ### Community 7 - "keys.rs"
-Cohesion: 0.12
-Nodes (11): insert_and_jump_over_next_key(), keys_after_remove(), keys_all_keys_present(), keys_basic(), keys_duplicate_insert(), keys_empty_map(), keys_full_map(), keys_iterator_does_not_drop_stored_value() (+3 more)
-
-### Community 8 - "compare_with_intmap.rs"
-Cohesion: 0.23
-Nodes (11): compare_ctors_empty(), compare_ctors_prefill(), compare_insert(), compare_keys(), compare_values(), criterion_config(), PASSES, setup_emap_prefilled_safe() (+3 more)
+Cohesion: 0.19
+Nodes (12): insert_and_jump_over_next_key(), keys_after_remove(), keys_all_keys_present(), keys_basic(), keys_duplicate_insert(), keys_empty_map(), keys_full_map(), keys_iterator_does_not_drop_stored_value() (+4 more)
 
 ### Community 9 - "benchmark.rs"
 Cohesion: 0.27
 Nodes (6): benchmark(), benchmark_and_print(), CAP, compare!, measure!, main()
 
-### Community 11 - "insert.rs"
-Cohesion: 0.17
-Nodes (12): bench_insert_str(), bench_insert_string(), bench_insert_u64(), bench_single_insert_latency(), criterion_config(), SIZES, bench_remove_safe(), bench_remove_unchecked() (+4 more)
+### Community 11 - "compare_with_intmap.rs"
+Cohesion: 0.10
+Nodes (23): compare_ctors_empty(), compare_ctors_prefill(), compare_insert(), compare_keys(), compare_values(), criterion_config(), PASSES, setup_emap_prefilled_safe() (+15 more)
 
 ### Community 12 - "Item"
 Cohesion: 0.29
@@ -144,22 +141,22 @@ Nodes (3): Markdown Lint Workflow, PDD Workflow, Typos Workflow
 
 ## Knowledge Gaps
 - **23 isolated node(s):** `emap`, `config:base`, `Map<V>`, `Map<V>`, `Iter<'a, V>` (+18 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 150 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **18 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 152 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **19 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Keys` connect `NodeId` to `keys.rs`?**
-  _High betweenness centrality (0.066) - this node is a cross-community bridge._
+- **Why does `Map` connect `Map` to `map.rs`, `serialization.rs`, `keys.rs`, `benchmark.rs`, `iterators_tests.rs`, `compare_with_intmap.rs`, `index.rs`, `debug.rs`?**
+  _High betweenness centrality (0.354) - this node is a cross-community bridge._
 - **What connects `emap`, `config:base`, `Map<V>` to the rest of the system?**
   _23 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `map.rs` be split into smaller, more focused modules?**
-  _Cohesion score 0.09308510638297872 - nodes in this community are weakly interconnected._
-- **Why does `NodeId` connect `NodeId` to `node.rs`?**
-  _High betweenness centrality (0.065) - this node is a cross-community bridge._
+  _Cohesion score 0.09951690821256039 - nodes in this community are weakly interconnected._
+- **Why does `NodeId` connect `Map` to `map.rs`, `node.rs`, `keys.rs`?**
+  _High betweenness centrality (0.103) - this node is a cross-community bridge._
 - **Should `node.rs` be split into smaller, more focused modules?**
-  _Cohesion score 0.13538461538461538 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.14333333333333334 - nodes in this community are weakly interconnected._
 
 ### Low-confidence Hints
 _AMBIGUOUS edges — the extractor was unsure. Verify before acting on these._

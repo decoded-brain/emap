@@ -1,12 +1,9 @@
-// SPDX-FileCopyrightText: Copyright (c) 2023-2026 Yegor Bugayenko
-// SPDX-License-Identifier: MIT
 
 use super::*;
 use std::cell::Cell;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
 
-/// Out-of-bounds insert must panic in debug builds.
 #[test]
 #[should_panic(expected = "The key 5 is over the boundary 1")]
 #[cfg(debug_assertions)]
@@ -15,7 +12,6 @@ fn insert_out_of_boundary() {
     m.insert(5, "one");
 }
 
-/// Out-of-bounds get must panic in debug builds.
 #[test]
 #[should_panic(expected = "The key 5 is over the boundary 1")]
 #[cfg(debug_assertions)]
@@ -24,7 +20,6 @@ fn get_out_of_boundary() {
     m.get(5).unwrap();
 }
 
-/// Out-of-bounds remove must panic in debug builds.
 #[test]
 #[should_panic(expected = "The key 5 is over the boundary 1")]
 #[cfg(debug_assertions)]
@@ -33,7 +28,6 @@ fn remove_out_of_boundary() {
     m.remove(5);
 }
 
-/// Memory layout size must reflect Node<V> array size.
 #[test]
 fn calculates_size_of_memory() {
     let m1: Map<u8> = Map::with_capacity_none(8);
@@ -42,28 +36,24 @@ fn calculates_size_of_memory() {
     assert_eq!(24 * 8, m2.layout.size());
 }
 
-/// New map must start empty.
 #[test]
 fn makes_new_map() {
     let m: Map<&str> = Map::with_capacity_none(16);
     assert_eq!(0, m.len());
 }
 
-/// Capacity must match constructor argument.
 #[test]
 fn returns_capacity() {
     let m: Map<&str> = Map::with_capacity_none(16);
     assert_eq!(16, m.capacity());
 }
 
-/// Contains check must return false for uninitialized slot.
 #[test]
 fn with_init() {
     let m: Map<&str> = Map::with_capacity_none(16);
     assert!(!m.contains_key(8));
 }
 
-/// Dropping an empty map should be safe.
 #[test]
 fn drops_correctly() {
     let m: Map<Vec<u8>> = Map::with_capacity_none(16);
@@ -71,7 +61,6 @@ fn drops_correctly() {
     drop(m);
 }
 
-/// Values must be dropped on map drop.
 #[test]
 fn drops_values() {
     let mut m: Map<Rc<()>> = Map::with_capacity_none(1);
@@ -81,7 +70,6 @@ fn drops_values() {
     assert_eq!(Rc::strong_count(&v), 1);
 }
 
-/// Multiple values must be dropped on map drop.
 #[test]
 fn drops_multiple_values() {
     let mut m: Map<Rc<()>> = Map::with_capacity_none(3);
@@ -100,7 +88,6 @@ fn drops_multiple_values() {
     assert_eq!(Rc::strong_count(&c), 1);
 }
 
-/// Values must not leak after repeated insert/remove cycles.
 #[test]
 fn drops_values_after_remove_cycles() {
     let mut m: Map<Rc<()>> = Map::with_capacity_none(2);
@@ -122,14 +109,12 @@ struct Foo {
     pub t: i32,
 }
 
-/// Struct values must initialize as expected.
 #[test]
 fn init_with_structs() {
     let m: Map<Foo> = Map::with_capacity_none(16);
     assert_eq!(16, m.capacity());
 }
 
-/// `with_capacity_some` must fill all slots and set len accordingly.
 #[test]
 fn init_with_some() {
     let m: Map<Foo> = Map::with_capacity_some(16, Foo { t: 42 });
@@ -137,7 +122,6 @@ fn init_with_some() {
     assert_eq!(16, m.len());
 }
 
-/// Zero capacity must be supported.
 #[test]
 fn init_with_empty() {
     let m: Map<Foo> = Map::with_capacity_some(0, Foo { t: 42 });
@@ -145,7 +129,6 @@ fn init_with_empty() {
     assert_eq!(0, m.len());
 }
 
-/// Partial initialization that panics must still be drop-safe.
 #[test]
 fn drop_after_boundary_panic_without_initialization() {
     let result = catch_unwind(AssertUnwindSafe(|| {
@@ -193,7 +176,6 @@ impl Drop for PanicOnClone {
     }
 }
 
-/// If cloning panics during `with_capacity_some`, no values must leak.
 #[test]
 fn drop_after_partial_with_capacity_some_panics() {
     let clones = Rc::new(Cell::new(0));

@@ -1,5 +1,3 @@
-// SPDX-FileCopyrightText: Copyright (c) 2023-2026 Yegor Bugayenko
-// SPDX-License-Identifier: MIT
 
 use emap::Map;
 use intmap::IntMap;
@@ -170,11 +168,6 @@ fn benchmark(total: usize) -> Vec<(&'static str, Duration, Duration)> {
     ret
 }
 
-/// Run it from command line:
-///
-/// ```text
-/// $ cargo test --release benchmark_and_print -- --nocapture
-/// ```
 #[test]
 pub fn benchmark_and_print() {
     let times = benchmark(1000);

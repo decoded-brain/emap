@@ -1,5 +1,3 @@
-// SPDX-FileCopyrightText: Copyright (c) 2023-2026 Yegor Bugayenko
-// SPDX-License-Identifier: MIT
 
 use crate::Keys;
 use crate::Map;
@@ -21,11 +19,6 @@ impl<V> Iterator for Keys<'_, V> {
 }
 
 impl<V> Map<V> {
-    /// Make an iterator over all keys.
-    ///
-    /// # Panics
-    ///
-    /// It may panic in debug mode, if the [`Map`] is not initialized.
     #[inline]
     #[must_use]
     pub const fn keys(&self) -> Keys<'_, V> {
