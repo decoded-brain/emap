@@ -8,4 +8,4 @@ node_modules/
 target/
 tmp/
 
-graphify-out/cost.json
+/graphify-out/
